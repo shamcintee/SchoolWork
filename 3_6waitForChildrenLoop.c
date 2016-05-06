@@ -2,10 +2,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <limits.h>  // why??
-/*#ifndef MAX_CANON
+#include <limits.h>  
+#ifndef MAX_CANON
 #define MAX_CANON 8192
-#endif*/
+#endif
 
 int main (int argc, char *argv[]) 
 {

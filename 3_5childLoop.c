@@ -1,62 +1,80 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <limits.h>
 #include <unistd.h>
-/* #include <limits.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <signal.h>
 #ifndef MAX_CANON
 #define MAX_CANON 8192
-#endif */
+#endif 
 
 int main (int argc, char *argv[]) 
 {
-   if (argc != 2)  // check for valid number of command-line arguments 
-   {   
-      fprintf(stderr, "Usage: %s processes.\nYou must enter an integer with the command.\n", argv[0]);
-      return 1; 
-   }  
+  if (argc != 2)  // check for valid number of command-line arguments 
+  {   
+    fprintf(stderr, "Usage: %s processes.\nYou must enter an integer with the command.\n", argv[0]);
+    return 1; 
+  }  
 
-   int pr_limit = atoi(argv[1]);  
-   int pr_count = 0;
-   char cmd[MAX_CANNON]; // the string we want to process
+  int pr_limit;
+  pr_limit = atoi(argv[1]);  
+  int pr_count = 0;
+  char cmd[MAX_CANON]; // the string we want to process
 
-   printf ( "Enter next command: " );
+  printf ( "Enter next command: " );
 
-   while(fgets(cmd, MAX_CANON, stdin) != NULL) 
-   {
-      if (pr_count == pr_limit)  // if reached thread limit, wait for other processes to finish 
+  int shm_count = 0;  // shared memory space variable
+  pipe( &shm_count );  // piping officially makes it shared
+
+  while(fgets(cmd, MAX_CANON, stdin) != NULL) 
+  {
+    read( shm_count, &pr_count, sizeof(pr_count) ); // check shm_count to make sure have current version of pr_count
+
+    if (pr_count == pr_limit)  // if reached thread limit, wait for other processes to finish 
+    {
+      printf( "One moment while we wait for a process to finish....");
+      wait( NULL );       // test to see if working
+      printf( "Executing %s ", cmd);
+      read( shm_count, &pr_count, sizeof(pr_count) ); // check to make it hasn't changed
+      pr_count--;
+      write( shm_count, &pr_count, sizeof(pr_count) );
+    }
+    
+    pid_t childpid; 
+    childpid = fork(); // "assign value of fork to childpid"
+
+    switch ( childpid )
+    {
+      case -1:
+          err_sys( "fork failed" );
+          break;
+      case 0: // child
       {
-        printf( "One moment while we wait for a process to finish....");
-        wait();       // test to see if working
-        printf( "Executing %s ", cmd);
-        pr_count--;
-      }
-      
-      pid_t childpid; 
-      pipe( pr_count );
-      childpid = fork(); // "assign value of fork to childpid"
+          char **argp; // a complex pointer to a 2 dimensional array
+                        // string is char array, and will have 3 strings (so array of arrays)
+          int numArgs; // the number of arguments
+          numArgs = makeargv( cmd, " ", &argp ); // look at the 'cmd' string and parse by [space] and store the return built array of arguments into "argp" then return the size of the array
 
-      switch ( childpid )
-      {
-        case -1:
-            err_sys( "fork failed" );
-            break;
-        case 0: // child
-            char **argp; // a complex pointer to a 2 dimensional array
-                          // string is char array, and will have 3 strings (so array of arrays)
-            int numArgs; // the number of arguments
-            numArgs = makeargv( cmd, " ", &argp ); // look at the 'cmd' string and parse by [space] and store the return built array of arguments into "argp" then return the size of the array
+          execvp( argp[0], &argp );  // execute command at [0] and pass all commonds
+          printf( "%s process ID: %d\n", argp[0], childpid ); // test
+          waitpid( -1, NULL, WNOHANG );
+          read( shm_count, &pr_count, sizeof(pr_count) ); // check to make it hasn't changed
+          pr_count--;
+          write( shm_count, &pr_count, sizeof(pr_count) );
+          exit( 1 );  // child ends
+          break;
+        }
+      default: // parent forks child process
+          read( shm_count, &pr_count, sizeof(pr_count) ); // check to make it hasn't changed
+          pr_count++;
+          write( shm_count, &pr_count, sizeof(pr_count) );  
 
-            execvp( argp[0], &argp );  // execute command at [0] and pass all commonds
-            printf( "%s process ID: %d\n", argp[0], childpid ); // test
-            waitpid( -1, NULL, WNOHANG );
-            pr_count--;
-            exit( 1 );  // child ends
-            break;
-        default: // parent forks child process
-            pr_count++;
-            break;
-      }
+          break;
+    }
 
-      printf ( "Enter next command: " );
+    printf ( "Enter next command: " );
+
    }
 
    return 0; 
