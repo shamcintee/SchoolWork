@@ -1,0 +1,23 @@
+Process Chain Exercise
+
+1. simplechain forks x number of processes and prints out the process id, parent id, and child id for each process. There is a "bug" in it where the command prompt is printed at the 4 iteration of the loop. 
+
+2. In a simplechain run with 4 process for the argument, the diagram of the chain is:
+
+Original process 835 1690-->1691-->1692-->1693 
+
+(The second 2 processes were adopted by init, but since this is a simple chain, it is easy to see who the parents should be.)
+
+3. I ran simplechain for 999 processes. Of all those processes, only 15 were NOT adopted by init, including that originating process. I set 'i' to a very large value, 100,000, and realized that the process ID's only go up to 99,998 before they reset. The starting process ID is 100.
+
+4. With adding sleep(10) before the fprintf in the simplechain, the process argument limit is 655. If you give it more that 655, the last child get a value of -1. Only 26 processes in 100 are adopted by init in this revision.
+
+5. I modified simplechain to have the fprintf loop and sleep. With a 10 processes, 2 sleeps, and 5 loops, it prints out the block of 10 procs, waits for 2 sec, and does that 5 times. There were no orphaned processes in this test. The order of when the processes printed varied.
+
+Usage: ./simplechain6 processes sleep loopCount
+6. I put a wait(NULL) right before the fprintf and inside the loop adding to the modification of step 5. In this case it printed the last process in each chain loopCount times, then the next to last and so on until it printed all 10 processes ending with the originating process.
+
+7. Replacing the final fprintf with four fprintf's didn't seem to change the output of the program. I don't understand what four integers are to be displayed.
+
+8. It took a while for me to get the char input from the buffer to display correctly. First I had trouble getting the chars IN the buffer, and then I realized I should have the process wait so the buffer of what I just typed would print correctly. The number of chars specified at the command line are all that fit in the buffer. My understanding of forking and process threads is getting better. 
+
